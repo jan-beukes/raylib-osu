@@ -38,12 +38,11 @@ int main()
 
         if (GuiButton((Rectangle){100, 175, 50, 50}, "start"))
         {
-            system("del input.wav");
-            system("del output.wav");
-            system("ls");
+            system("rm input.wav");
+            system("rm output.wav");
             system("ffmpeg -i input.mp3 input.wav");
             system("ffmpeg -i input.wav -ar 44100 output.wav");
-            system("wav_to_beats.exe output.wav > output_beats.txt");
+            system("./wav_to_beats output.wav > output_beats.txt");
             break;
         }
 
