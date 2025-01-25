@@ -109,8 +109,8 @@ void osuRun() {
     // Start playing the music
     PlayMusicStream(music);
 
-    float pre_x = 1280.0f / 2;
-    float pre_y = 720.0f / 2;
+    float pre_x = GetScreenWidth() / 2.0f;
+    float pre_y = GetScreenHeight() / 2.0f;
 
     // Create a list of circles
     std::vector<Circle> circles;
@@ -130,33 +130,40 @@ void osuRun() {
             break;
         }
 
+        const float radius = 30.0f;
+        // Play area
+        int play_x = 4 * radius;
+        int play_y = 4 * radius;
+        int play_width = GetScreenWidth() - 2 * play_x;
+        int play_height = GetScreenHeight() - 2 * play_y;
+
         float random_x = (float)GetRandomValue(-100, 100);
         float random_y = (float)GetRandomValue(-100, 100);
 
         pre_x += random_x;
         pre_y += random_y;
 
-        // Playable area is 1280x720
-        if (pre_x < 0)
+        // Playable area is play_widthxplay_height
+        if (pre_x < play_x)
         {
-            pre_x = 0;
+            pre_x = play_x;
         }
-        if (pre_x > 1280)
+        if (pre_x > play_x + play_width)
         {
-            pre_x = 1280;
+            pre_x = play_x + play_width;
         }
-        if (pre_y < 0)
+        if (pre_y < play_y)
         {
-            pre_y = 0;
+            pre_y = play_y;
         }
-        if (pre_y > 720)
+        if (pre_y > play_y + play_height)
         {
-            pre_y = 720;
+            pre_y = play_y + play_height;
         }
 
         Circle circle;
         circle.position = {pre_x, pre_y};
-        circle.radius = 30.0f;
+        circle.radius = radius;
         circle.color = (Color){
             (unsigned char)GetRandomValue(50, 255),
             (unsigned char)GetRandomValue(50, 255),
