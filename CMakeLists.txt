@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.10)
+
 project(main)
 
 include(FetchContent)
@@ -13,8 +15,8 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(raylib)
 
-file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/sources/main.cpp")
-set(PROJECT_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/sources/")
+file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/src/main.cpp")
+set(PROJECT_INCLUDE "${CMAKE_CURRENT_LIST_DIR}/src/")
 
 add_executable(${PROJECT_NAME})
 target_sources(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCES})
