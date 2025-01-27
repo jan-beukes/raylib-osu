@@ -307,7 +307,7 @@ int main()
             system("./wav_to_beats output.wav > output_beats.txt");
 #endif
 
-            InitWindow(1280, 720, "Raylib osu!");
+            SetWindowSize(1280, 720);
             centerWindow(1280, 720);
             osuRun();
             break;
