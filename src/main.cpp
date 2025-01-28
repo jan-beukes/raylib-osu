@@ -17,6 +17,8 @@
 
 #include <sqlite3.h>
 
+#include "database.h"
+
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.hpp"
 
@@ -103,7 +105,8 @@ void osuUpdate(std::vector<Circle> &circles, float elapsed_time, float dt)
     }
 }
 
-void osuRun() {
+void osuRun()
+{
     DisableCursor();
 
     // Load the music file
@@ -203,8 +206,6 @@ void osuRun() {
             UpdateMusicStream(music);
         }
 
-
-
         // Drawing
         BeginDrawing();
         {
@@ -277,7 +278,8 @@ void osuRun() {
     return;
 }
 
-void handleUserLogin() {
+void handleUserLogin()
+{
     std::string username;
     std::string password;
 
@@ -286,10 +288,13 @@ void handleUserLogin() {
     std::cout << "Enter password: ";
     std::cin >> password;
 
-    if (checkUserCredentials(username, password)) {
+    if (checkUserCredentials(username, password))
+    {
         current_user = username;
         std::cout << "Login successful!" << std::endl;
-    } else {
+    }
+    else
+    {
         std::cout << "Invalid credentials. Please try again." << std::endl;
         handleUserLogin();
     }
@@ -308,7 +313,6 @@ int main()
 
     InitAudioDevice();
     key_press_1 = LoadSound("key-press-1.mp3");
-    
 
     while (!WindowShouldClose())
     {
