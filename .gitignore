@@ -4,3 +4,4 @@ CMakeFiles
 CPackConfig.cmake
 CPackSourceConfig.cmake
 cmake_install.cmake
+Makefile
