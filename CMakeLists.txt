@@ -66,3 +66,19 @@ target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
 endif()
 
 # ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
+# Include and link the sqlite3 library
+# ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+include_directories("${CMAKE_CURRENT_LIST_DIR}/include/sqlite3")
+link_directories("${CMAKE_CURRENT_LIST_DIR}/lib/sqlite3")
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+include_directories("/usr/include/sqlite3")
+link_directories("/usr/lib")
+endif()
+
+target_link_libraries(${PROJECT_NAME} PRIVATE sqlite3)
+
+# ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
