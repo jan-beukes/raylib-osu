@@ -76,3 +76,4 @@ target_link_libraries(${PROJECT_NAME} PRIVATE raylib sqlite3)
 endif()
 
 # ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
+# test syncing
