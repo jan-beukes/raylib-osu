@@ -15,6 +15,8 @@
 #include <raylib.h>
 #include <raymath.h>
 
+#include <sqlite3.h>
+
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.hpp"
 
@@ -34,6 +36,7 @@ Sound key_press_1 = {0};
 int score = 0;
 int streak = 0;
 float time_diff = 0.0f;
+std::string current_user;
 
 void centerWindow(int width, int height)
 {
@@ -261,6 +264,9 @@ void osuRun() {
         EndDrawing();
     }
 
+    // Save the user's score in the database
+    saveUserScore(current_user, score);
+
     // Unload the music
     UnloadMusicStream(music);
     // Close the audio device
@@ -271,8 +277,31 @@ void osuRun() {
     return;
 }
 
+void handleUserLogin() {
+    std::string username;
+    std::string password;
+
+    std::cout << "Enter username: ";
+    std::cin >> username;
+    std::cout << "Enter password: ";
+    std::cin >> password;
+
+    if (checkUserCredentials(username, password)) {
+        current_user = username;
+        std::cout << "Login successful!" << std::endl;
+    } else {
+        std::cout << "Invalid credentials. Please try again." << std::endl;
+        handleUserLogin();
+    }
+}
+
 int main()
 {
+    // Initialize the database
+    initializeDatabase();
+
+    // Handle user login
+    handleUserLogin();
 
     InitWindow(400, 400, "Raylib osu!");
     SetTargetFPS(120);
