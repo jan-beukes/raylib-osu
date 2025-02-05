@@ -177,7 +177,7 @@ void displayScores()
         return;
     }
 
-    InitWindow(600, 600, "Scores");
+    InitWindow(1280, 720, "Scores");
     SetTargetFPS(60);
 
     while (!WindowShouldClose())
