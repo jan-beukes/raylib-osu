@@ -177,7 +177,7 @@ void displayScores()
         return;
     }
 
-    InitWindow(400, 400, "Scores");
+    InitWindow(600, 600, "Scores");
     SetTargetFPS(60);
 
     while (!WindowShouldClose())
@@ -439,7 +439,10 @@ void osuRun()
     std::cout << "Current song: " << current_song << std::endl;
 
     // Save the user's score in the database
-    saveUserScore(current_user, score, current_song);
+    if (score > 0)
+    {
+        saveUserScore(current_user, score, current_song);
+    }
 
     // Unload the music
     UnloadMusicStream(music);
