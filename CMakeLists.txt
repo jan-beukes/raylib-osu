@@ -33,6 +33,11 @@ include_directories("/usr/local/include/aubio")
 link_directories("/usr/local/lib")
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+include_directories("/usr/local/include/aubio")
+link_directories("/usr/local/lib")
+endif()
+
 add_executable(wav_to_beats "${CMAKE_CURRENT_LIST_DIR}/src/wav_to_beats.cpp")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -40,6 +45,10 @@ target_link_libraries(wav_to_beats aubio -static)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+target_link_libraries(wav_to_beats aubio)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 target_link_libraries(wav_to_beats aubio)
 endif()
 
@@ -53,6 +62,11 @@ link_directories("${CMAKE_CURRENT_LIST_DIR}/lib/sqlite3")
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+include_directories("/usr/include/sqlite3")
+link_directories("/usr/lib")
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
 include_directories("/usr/include/sqlite3")
 link_directories("/usr/lib")
 endif()
@@ -75,5 +89,8 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 target_link_libraries(${PROJECT_NAME} PRIVATE raylib sqlite3)
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+target_link_libraries(${PROJECT_NAME} PRIVATE raylib sqlite3)
+endif()
+
 # ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
-# test syncing
