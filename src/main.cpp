@@ -4,7 +4,9 @@
 
 #include <math.h>
 #include <time.h>
+
 #include <string.h>
+#include <string>
 
 #include <iostream>
 #include <vector>
@@ -14,6 +16,8 @@
 
 #include <raylib.h>
 #include <raymath.h>
+
+#include <sqlite3.h>
 
 #define RAYGUI_IMPLEMENTATION
 #include "raygui.hpp"
@@ -34,6 +38,174 @@ Sound key_press_1 = {0};
 int score = 0;
 int streak = 0;
 float time_diff = 0.0f;
+std::string current_user;
+std::string current_song;
+
+sqlite3 *db;
+
+bool has_url = false;
+
+bool isLoggedIn = false;
+bool isAddingUser = false;
+
+void initializeDatabase()
+{
+    // get database from 129.151.168.7/osu.db
+    system("wget -O osu.db http://129.151.168.7/osu.db");
+
+    int rc = sqlite3_open("osu.db", &db);
+
+    if (rc)
+    {
+        std::cerr << "Can't open database: " << sqlite3_errmsg(db) << std::endl;
+        return;
+    }
+
+    const char *sql_create_users = "CREATE TABLE IF NOT EXISTS users ("
+                                   "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                                   "username TEXT NOT NULL UNIQUE,"
+                                   "password TEXT NOT NULL);";
+
+    const char *sql_create_scores = "CREATE TABLE IF NOT EXISTS scores ("
+                                    "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+                                    "username TEXT NOT NULL,"
+                                    "score INTEGER NOT NULL,"
+                                    "song TEXT NOT NULL,"
+                                    "FOREIGN KEY(username) REFERENCES users(username));";
+
+    char *errMsg = nullptr;
+    rc = sqlite3_exec(db, sql_create_users, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "SQL error: " << errMsg << std::endl;
+        sqlite3_free(errMsg);
+    }
+
+    rc = sqlite3_exec(db, sql_create_scores, nullptr, nullptr, &errMsg);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "SQL error: " << errMsg << std::endl;
+        sqlite3_free(errMsg);
+    }
+}
+
+bool addUser(const std::string &username, const std::string &password)
+{
+    const char *sql = "INSERT INTO users (username, password) VALUES (?, ?);";
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << std::endl;
+        return false;
+    }
+
+    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, password.c_str(), -1, SQLITE_STATIC);
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE)
+    {
+        std::cerr << "Failed to execute statement: " << sqlite3_errmsg(db) << std::endl;
+        sqlite3_finalize(stmt);
+        return false;
+    }
+
+    sqlite3_finalize(stmt);
+    return true;
+}
+
+bool checkUserCredentials(const std::string &username, const std::string &password)
+{
+    const char *sql = "SELECT * FROM users WHERE username = ? AND password = ?;";
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << std::endl;
+        return false;
+    }
+
+    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_text(stmt, 2, password.c_str(), -1, SQLITE_STATIC);
+
+    rc = sqlite3_step(stmt);
+    bool result = (rc == SQLITE_ROW);
+
+    sqlite3_finalize(stmt);
+    return result;
+}
+
+void saveUserScore(const std::string &username, int score, const std::string &song)
+{
+    const char *sql = "INSERT INTO scores (username, score, song) VALUES (?, ?, ?);";
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << std::endl;
+        return;
+    }
+
+    sqlite3_bind_text(stmt, 1, username.c_str(), -1, SQLITE_STATIC);
+    sqlite3_bind_int(stmt, 2, score);
+    sqlite3_bind_text(stmt, 3, song.c_str(), -1, SQLITE_STATIC);
+
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE)
+    {
+        std::cerr << "Failed to execute statement: " << sqlite3_errmsg(db) << std::endl;
+    }
+
+    sqlite3_finalize(stmt);
+
+    // Construct the curl command
+    std::string command = "curl -X POST -H \"Content-Type: application/json\" -d \"{\\\"username\\\":\\\" " + username + " \\\",\\\"score\\\":" + std::to_string(score) + ",\\\"song\\\":\\\"" + song + "\\\"}\" http://129.151.168.7/scores";
+
+    // Execute the command
+    int result = system(command.c_str());
+}
+
+void displayScores()
+{
+    const char *sql = "SELECT username, score, song FROM scores ORDER BY song, score DESC;";
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, nullptr);
+    if (rc != SQLITE_OK)
+    {
+        std::cerr << "Failed to prepare statement: " << sqlite3_errmsg(db) << std::endl;
+        return;
+    }
+
+    InitWindow(1280, 720, "Scores");
+    SetTargetFPS(60);
+
+    while (!WindowShouldClose())
+    {
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        int y = 50;
+        while (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            const unsigned char *username = sqlite3_column_text(stmt, 0);
+            int score = sqlite3_column_int(stmt, 1);
+            const unsigned char *song = sqlite3_column_text(stmt, 2);
+            DrawText(TextFormat("%s: %d (%s)", username, score, song), 50, y, 20, DARKGRAY);
+            y += 30;
+        }
+
+        if (GuiButton((Rectangle){150, 350, 100, 30}, "close"))
+        {
+            break;
+        }
+
+        EndDrawing();
+    }
+
+    sqlite3_finalize(stmt);
+    CloseWindow();
+}
 
 void centerWindow(int width, int height)
 {
@@ -100,7 +272,8 @@ void osuUpdate(std::vector<Circle> &circles, float elapsed_time, float dt)
     }
 }
 
-void osuRun() {
+void osuRun()
+{
     DisableCursor();
 
     // Load the music file
@@ -200,8 +373,6 @@ void osuRun() {
             UpdateMusicStream(music);
         }
 
-
-
         // Drawing
         BeginDrawing();
         {
@@ -261,6 +432,18 @@ void osuRun() {
         EndDrawing();
     }
 
+    // Get the current song name from current_song.txt
+    std::ifstream songFile("current_song.txt");
+    std::getline(songFile, current_song);
+
+    std::cout << "Current song: " << current_song << std::endl;
+
+    // Save the user's score in the database
+    if (score > 0)
+    {
+        saveUserScore(current_user, score, current_song);
+    }
+
     // Unload the music
     UnloadMusicStream(music);
     // Close the audio device
@@ -271,40 +454,166 @@ void osuRun() {
     return;
 }
 
-int main()
+void showLoginScreen()
 {
+    InitWindow(400, 400, "Login");
+    SetTargetFPS(60);
 
-    InitWindow(400, 400, "Raylib osu!");
-    SetTargetFPS(120);
-
-    InitAudioDevice();
-    key_press_1 = LoadSound("key-press-1.mp3");
-    
+    char username[64] = "";
+    char password[64] = "";
+    bool loginFailed = false;
 
     while (!WindowShouldClose())
     {
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        DrawText("Login", 160, 50, 20, DARKGRAY);
+
+        GuiLabel((Rectangle){50, 100, 100, 20}, "Username:");
+        GuiTextBox((Rectangle){150, 100, 200, 20}, username, 64, true);
+
+        if (GuiButton((Rectangle){150, 200, 100, 30}, "Login"))
+        {
+            current_user = username;
+            isLoggedIn = true;
+            break;
+        }
+        EndDrawing();
+    }
+
+    CloseWindow();
+}
+
+void download_new_song()
+{
+    InitWindow(400, 400, "Download Song");
+    SetTargetFPS(60);
+
+    char youtube_url[64] = "";
+    std::string str_youtube_url = "";
+
+    while (!WindowShouldClose())
+    {
+        BeginDrawing();
+        ClearBackground(RAYWHITE);
+
+        DrawText("Download Song", 100, 50, 20, DARKGRAY);
+
+        GuiLabel((Rectangle){50, 100, 100, 20}, "song YouTube URL:");
+        GuiTextBox((Rectangle){150, 100, 200, 20}, youtube_url, 64, true);
+
+        if (GuiButton((Rectangle){150, 200, 100, 30}, "Download"))
+        {
+            str_youtube_url = youtube_url;
+#ifdef __linux__
+            // linux code goes here
+            system(("./yt-dlp -x --audio-format mp3 -o input.mp3 \"" + str_youtube_url + "\" ").c_str());
+            system(("./yt-dlp --simulate --print \"%(title)s\" \"" + str_youtube_url + "\" > current_song.txt").c_str());
+
+#elif _WIN32
+            // windows code goes here
+            system(("yt-dlp -x --audio-format mp3 -o input.mp3 \"" + str_youtube_url + "\" ").c_str());
+            system(("yt-dlp --simulate --print \"%(title)s\" \"" + str_youtube_url + "\" > current_song.txt").c_str());
+
+#else
+            system(("./yt-dlp -x --audio-format mp3 -o input.mp3 \"" + str_youtube_url + "\" ").c_str());
+            system(("./yt-dlp --simulate --print \"%(title)s\" \"" + str_youtube_url + "\" > current_song.txt").c_str());
+
+#endif
+            break;
+        }
+
+        EndDrawing();
+    }
+
+    CloseWindow();
+}
+
+int main(int argc, char *argv[])
+{
+    if (argc == 1)
+    {
+        has_url = false;
+    }
+    if (argc == 2)
+    {
+        has_url = true;
+    }
+    // Initialize the database
+    initializeDatabase();
+    showLoginScreen();
+
+    InitWindow(400, 400, "Raylib osu!");
+
+    SetTargetFPS(120);
+
+    InitAudioDevice();
+
+    key_press_1 = LoadSound("key-press-1.mp3");
+
+    while (!WindowShouldClose())
+    {
+
         BeginDrawing();
 
         ClearBackground(GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
 
         DrawText("Raylib osu!", 130, 100, 30, BLACK);
 
-        if (GuiButton((Rectangle){100, 175, 50, 50}, "start"))
+        if (GuiButton((Rectangle){100, 175, 200, 20}, "start"))
         {
-#ifdef _WIN32
-            system("del input.wav");
-            system("del output.wav");
-            system("ffmpeg -i input.mp3 input.wav");
-            system("ffmpeg -i input.wav -ar 44100 output.wav");
-            system("wav_to_beats.exe output.wav > output_beats.txt");
-#endif
-
 #ifdef __linux__
+            // linux code goes here
+            system("rm -f input.mp3");
             system("rm -f input.wav");
             system("rm -f output.wav");
+            if (has_url == false)
+            {
+                download_new_song();
+            }
+            if (has_url == true)
+            {
+                system(("./yt-dlp -x --audio-format mp3 -o input.mp3 \"" + std::string(argv[1]) + "\" ").c_str());
+                system(("./yt-dlp --simulate --print \"%(title)s\" \"" + std::string(argv[1]) + "\" > current_song.txt").c_str());
+            }
             system("ffmpeg -i input.mp3 input.wav");
             system("ffmpeg -i input.wav -ar 44100 output.wav");
             system("./wav_to_beats output.wav > output_beats.txt");
+#elif _WIN32
+            // windows code goes here
+            system("del input.mp3");
+            system("del input.wav");
+            system("del output.wav");
+            if (has_url == false)
+            {
+                download_new_song();
+            }
+            if (has_url == true)
+            {
+                system(("yt-dlp -x --audio-format mp3 -o input.mp3 \"" + std::string(argv[1]) + "\" ").c_str());
+                system(("yt-dlp --simulate --print \"%(title)s\" \"" + std::string(argv[1]) + "\" > current_song.txt").c_str());
+            }
+            system("ffmpeg -i input.mp3 input.wav");
+            system("ffmpeg -i input.wav -ar 44100 output.wav");
+            system("wav_to_beats.exe output.wav > output_beats.txt");
+#else
+            system("rm -f input.mp3");
+            system("rm -f input.wav");
+            system("rm -f output.wav");
+            if (has_url == false)
+            {
+                download_new_song();
+            }
+            if (has_url == true)
+            {
+                system(("./yt-dlp -x --audio-format mp3 -o input.mp3 \"" + std::string(argv[1]) + "\" ").c_str());
+                system(("./yt-dlp --simulate --print \"%(title)s\" \"" + std::string(argv[1]) + "\" > current_song.txt").c_str());
+            }
+            system("ffmpeg -i input.mp3 input.wav");
+            system("ffmpeg -i input.wav -ar 44100 output.wav");
+            system("./wav_to_beats output.wav > output_beats.txt");
+
 #endif
 
             SetWindowSize(1280, 720);
@@ -313,7 +622,12 @@ int main()
             break;
         }
 
-        if (GuiButton((Rectangle){250, 175, 50, 50}, "close"))
+        if (GuiButton((Rectangle){100, 200, 200, 20}, "scores"))
+        {
+            displayScores();
+        }
+
+        if (GuiButton((Rectangle){100, 225, 200, 20}, "close"))
         {
             CloseWindow();
             break;

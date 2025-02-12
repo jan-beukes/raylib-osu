@@ -33,6 +33,11 @@ include_directories("/usr/local/include/aubio")
 link_directories("/usr/local/lib")
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+include_directories("/usr/local/include/aubio")
+link_directories("/usr/local/lib")
+endif()
+
 add_executable(wav_to_beats "${CMAKE_CURRENT_LIST_DIR}/src/wav_to_beats.cpp")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -43,9 +48,28 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 target_link_libraries(wav_to_beats aubio)
 endif()
 
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+target_link_libraries(wav_to_beats aubio)
+endif()
+
 # ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
-# Include and link the raylib library
+# Include and link the raylib and sqlite library
 # ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+include_directories("${CMAKE_CURRENT_LIST_DIR}/include/sqlite3")
+link_directories("${CMAKE_CURRENT_LIST_DIR}/lib/sqlite3")
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+include_directories("/usr/include/sqlite3")
+link_directories("/usr/lib")
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+include_directories("/usr/include/sqlite3")
+link_directories("/usr/lib")
+endif()
 
 file(GLOB_RECURSE PROJECT_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/src/main.cpp")
 
@@ -58,11 +82,15 @@ target_sources(${PROJECT_NAME} PRIVATE ${PROJECT_SOURCES})
 target_include_directories(${PROJECT_NAME} PRIVATE ${PROJECT_INCLUDE})
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib -static)
+target_link_libraries(${PROJECT_NAME} PRIVATE raylib sqlite3.dll)
 endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-target_link_libraries(${PROJECT_NAME} PRIVATE raylib)
+target_link_libraries(${PROJECT_NAME} PRIVATE raylib sqlite3)
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+target_link_libraries(${PROJECT_NAME} PRIVATE raylib sqlite3)
 endif()
 
 # ---------- ---------- ---------- ---------- ---------- ---------- ---------- ---------- ----------
